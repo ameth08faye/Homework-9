@@ -1,0 +1,82 @@
+---
+title: "Homework 9"
+author: "Ameth FAYE"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source("C:/Users/HP/Desktop/ISEP2CoursR2024/Homework 7.R")
+
+
+#Fusionnons les bases conversion et cereales suivants les clefs produits, untité_cons et Taille_achat
+#Création des clefs produit,Unite_achat et Taille_achat dans la base conversion  
+
+fusion2 <- merge(cereales, conversion, by.x=c("cereales__id", "Unite_achat","Taille_achat"),
+                   by.y=c("produitID","uniteID","tailleID"),all.x=T)
+
+
+# Vérifions s'il y a des valeurs manquantes dans la colonne 'Qtty_achat' et 'poids'
+if (anyNA(fusion2$Qtty_achat) || anyNA(fusion2$poids)) {
+  cat("Il y a des valeurs manquantes dans les colonnes 'Qtty_achat' ou 'poids'.\n")
+  
+  # Supprimons les lignes contenant des valeurs manquantes dans 'Qtty_achat' et 'poids'
+  fusion2 <- fusion2[!is.na(fusion2$Qtty_achat) & !is.na(fusion2$poids),]
+  cat("Les valeurs manquantes ont été supprimées.\n")
+} else {
+  cat("Il n'y a pas de valeurs manquantes dans les colonnes 'Qtty_achat' et 'poids'.\n")
+}
+
+
+
+library(data.table)
+fusion2 <- data.table(fusion2)
+
+##1) Quantité achetée en unite standard (kg)
+fusion2 [,poids:=as.numeric(poids)]
+fusion2 [, Qtty_achetee_kg:= poids*Qtty_achat/1000]
+
+##2)Prix unitaire
+fusion2 [, prix_unitaire:= Value_achat/Qtty_achetee_kg]
+unique(fusion2$prix_unitaire)
+
+
+##3)Trouvons les dépenses de consommation
+
+#Vérifions si la variable Qtty_cons présente des valeurs manquantes
+anyNA(fusion2$Qtty_cons) #cela renvoie FALSE: aucune valeur manquante
+
+# Ainsi, chercons la quantité consommée
+
+
+is.numeric(fusion$poids_cons)#cela renvoie FALSE: donc nécessaire de faire une conversion
+##1) Quantité achetée en unite standard (kg)
+
+fusion2 [,Qtty_cons_kg:= poids*Qtty_cons/1000] 
+### Calculons les depenses de consommation proprement dites 
+fusion2[,depenses_cons:= prix_unitaire*Qtty_cons_kg]
+unique(fusion2$depenses_cons)
+
+##4)Valeurs aberrantes et corrections
+Q1 <- quantile(fusion2$Qtty_cons_kg, 0.25)
+Q3 <- quantile(fusion2$Qtty_cons_kg, 0.75)
+IQR <- Q3 - Q1
+
+# Définissons les limites pour les valeurs aberrantes
+upper_bound <- Q3 + 1.5 * IQR
+lower_bound <- Q1 - 1.5 * IQR
+
+library(dplyr)
+# Calculons la médiane de la variable qtty_cons_kg
+median_value <- median(fusion2$Qtty_cons_kg, na.rm = TRUE)
+# Remplaçons les valeurs aberrantes par la médiane
+fusion2$Qtty_cons_kg[which(fusion2$Qtty_cons_kg <lower_bound 
+                           & fusion2$qtty_cons_kg > upper_bound,)] <- median_value
+
+unique(fusion2$Qtty_cons)
+```
+
